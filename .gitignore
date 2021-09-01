@@ -1,3 +1,8 @@
 .vscode/tasks.json
 .vscode/launch.json
 ParticleLocations.csv
+CudaBase
+Particles.csv
+particles.csv
+CudaBase.o
+Kernels.o
