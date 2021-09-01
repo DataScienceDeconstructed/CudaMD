@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <math.h>
 #include <stdlib.h>     /* srand, rand */
 
@@ -9,6 +10,8 @@ void add(int n, float *x, float *y)
   for (int i = 0; i < n; i++)
     y[i] = x[i] + y[i];
 }
+
+int writePositions(float3 * r, int size);
 
 int main(void)
 {
@@ -35,9 +38,12 @@ int main(void)
   // setup polymers and determine total number of System Particles
   int PolymerLengths[PolymerCount];
   int SystemParticles = 0;
+  int PolymerLength = 0;
   for(int i = 0;i<PolymerCount;i++){
-    PolymerLengths[i] = 2 + (i % (PolymerMaxLength-2));  //this should be random, but qualitatively I'm just making the polymers have different lengths
-    SystemParticles++;
+    PolymerLength = 2 + (i % (PolymerMaxLength-2));
+    SystemParticles+= PolymerLength;
+    PolymerLengths[i] = PolymerLength;  //this should be random, but qualitatively I'm just making the polymers have different lengths
+    
   }
 
   SystemParticles += NanoCount; //this is now the total number of particles (nano plus monomers) in the system.
@@ -126,6 +132,19 @@ int main(void)
     }
   }
   
+  //write out initial configuration
+  //writePositions(r,SystemParticles);
+  std::cout<<"testing";
+  std::ofstream myfile;
+  myfile.open ("/home/clayton/Disertation/CudaMD/ParticleLocations.csv", std::ofstream::out);
+  //myfile <<"bumch of crap";
+//myfile<<"stupid trick \n";
+  myfile << "X,Y,Z \n ";
+
+    for(int i = 0;i<SystemParticles;i++){
+        myfile << r[i].x << " , " << r[i].y << " , "<< r[i].z << " \n ";
+      }
+  myfile.close();
 
   int N = 1<<20;
   float *x, *y;
@@ -161,5 +180,15 @@ int main(void)
   cudaFree(x);
   cudaFree(y);
   
+  return 0;
+}
+
+int writePositions(float3 * r, int size){
+      std::ofstream myfile;
+      myfile.open ("/home/clayton/Disertation/CudaMD/ParticleLocations.csv",std::ofstream::out);
+      for(int i = 0;i<size;i++){
+        myfile << r[i].x ,",", r[i].y,",", r[i].z,"\n";
+      }
+      myfile.close();
   return 0;
 }
