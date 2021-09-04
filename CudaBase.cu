@@ -10,12 +10,18 @@ int writePositions(float3 * r, int size);
 
 int main(void)
 {
+  //##############
+  //CUDA limits
+  //##############
+  int maxThreads = 1024;
+
   //***************************
   //define Simulation Variables
   //***************************
 
   //define number of each type of object in the simulation
-  int NanoCount = 10;            // number of nanoparticles  in the system
+  int RequestedNanoCount = 32;    // number of nanoparticles in the system will be set so a multiple of 32 so the final number will be +/- 31 of this number
+  int NanoCount;
   int PolymerCount = 10;          // number of Polymer chains in the system
 
   //length related variables
@@ -30,6 +36,10 @@ int main(void)
   float VolumeLength = ((float) ((int) sqrt(SubstrateSurfaceArea) + 1.0) ) * Rc;  // Y-Axis: the plus one and casting craziness is to get a ceiling operation and then convert back to a float.
   float VolumeHeight = (float) PolymerMaxLength * R * 2.0 ;                       // Z-Axis: must be > Polymer length to make sure that the polymers will have room to expand
 
+  //Energy related values
+  float mass = 1.0;
+  float Temp = 1.0;
+
   // setup polymers and determine total number of System Particles
   int PolymerLengths[PolymerCount];
   int SystemParticles = 0;
@@ -41,27 +51,24 @@ int main(void)
     
   }
 
-  SystemParticles += NanoCount;     //this is now the total number of particles (nano plus monomers) in the system.
+  //set the system to have a number of particles divisible by 32
+  int tExtraNanos = (SystemParticles + RequestedNanoCount) % 32;  // Figures out how many particles over a multiple of 32 we are
+  NanoCount = RequestedNanoCount - tExtraNanos;                   // Removes the remainder.
+  SystemParticles += NanoCount;                                   // This is now the total number of particles (nano plus monomers) in the system.
   
   //Define Kinematic Data memory
-  //float *x, *y;
-  //cudaMallocManaged(&x, N*sizeof(float));
 
   int *Type;
   int2 * neighbors;
   float3 *r, *v, *a;
+  float *ScalarTemp;
 
   cudaMallocManaged(&Type, SystemParticles*sizeof(int));
   cudaMallocManaged(&neighbors, SystemParticles*sizeof(int2));
   cudaMallocManaged(&r, SystemParticles*sizeof(float3));
   cudaMallocManaged(&v, SystemParticles*sizeof(float3));
   cudaMallocManaged(&a, SystemParticles*sizeof(float3));
-
-  //int Type[SystemParticles];        // particle type we use primes to quickly identify the interaction type (nano = 2, mono = 3, anchor = 5)
-  //float3 r[SystemParticles];        // location of particle
-  //float3 v[SystemParticles];        // velocity of particle
-  //float3 a[SystemParticles];        // acceleartion of particle
-  //int2 neighbors[SystemParticles];  // index of connected particles neighbors[x] are the 2 neighbors of x. 
+  cudaMallocManaged(&ScalarTemp, SystemParticles*sizeof(float));
   
   srand(123);                 //TODO: add better random number generator. seed random numbers probably need to add in a more reliable random number generator
   
@@ -139,7 +146,17 @@ int main(void)
       InitializationIndex++;
     }
   }
-  
+
+ //scale velocities to confine temperature
+ int numBlocks = SystemParticles / maxThreads +1; // the plus one is because of the integer dvision we always need at least 1
+ dim3 blocks(numBlocks);
+ dim3 threads(1024);
+ calc_v2<<<blocks, threads>>>(v, ScalarTemp, 1024); // TODO CHECK WHAT happens when the array is less than 1024 
+ // Wait for GPU to finish before accessing on host
+ cudaDeviceSynchronize();
+
+
+
   //write out initial configuration
   //writePositions(r,SystemParticles);
   std::cout<<"testing";
@@ -191,6 +208,7 @@ int main(void)
   cudaFree(r);
   cudaFree(v);
   cudaFree(a);
+  cudaFree(ScalarTemp);
   
   return 0;
 }
