@@ -1,0 +1,26 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        
+        {
+            "label": "clearEditor",
+            "command": "${command:workbench.action.clearEditorHistory}"
+        },
+        {
+            "label": "CUDAMD-Debug",
+            "type": "shell",
+            //"command": "nvcc -g -G --gpu-architecture=sm_37 CudaBase.cu -o CudaBase",
+            "command": "nvcc -g -G --gpu-architecture=sm_37 -c Kernels.cu && nvcc -g -G --gpu-architecture=sm_37 -c CudaBase.cu && nvcc -g -G --gpu-architecture=sm_37 -o CudaBase CudaBase.o Kernels.o",
+            "problemMatcher": [
+                "$nvcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+       
+    ]
+}

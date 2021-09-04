@@ -1,5 +1,3 @@
-.vscode/tasks.json
-.vscode/launch.json
 ParticleLocations.csv
 CudaBase
 Particles.csv
