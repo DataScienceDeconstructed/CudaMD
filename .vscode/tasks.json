@@ -12,7 +12,7 @@
             "label": "CUDAMD-Debug",
             "type": "shell",
             //"command": "nvcc -g -G --gpu-architecture=sm_37 CudaBase.cu -o CudaBase",
-            "command": "nvcc -g -G --gpu-architecture=sm_37 -c Kernels.cu && nvcc -g -G --gpu-architecture=sm_37 -c CudaBase.cu && nvcc -g -G --gpu-architecture=sm_37 -o CudaBase CudaBase.o Kernels.o",
+            "command": "nvcc -g -G --gpu-architecture=sm_37 -c Kernels.cu && nvcc -g -G --gpu-architecture=sm_37 -c MDUtils.cu && nvcc -g -G --gpu-architecture=sm_37 -c CudaBase.cu && nvcc -g -G --gpu-architecture=sm_37 -o CudaBase CudaBase.o Kernels.o MDUtils.o",
             "problemMatcher": [
                 "$nvcc"
             ],
