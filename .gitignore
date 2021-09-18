@@ -4,3 +4,4 @@ Particles.csv
 particles.csv
 CudaBase.o
 Kernels.o
+MDUtils.o
