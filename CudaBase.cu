@@ -2,8 +2,10 @@
 #include <fstream>
 #include <math.h>
 #include <stdlib.h>     /* srand, rand */
+#include <iostream>
 
 #include "Kernels.cuh"
+#include "MDUtils.cuh"
 
 
 int writePositions(float3 * r, int size);
@@ -11,9 +13,18 @@ int writePositions(float3 * r, int size);
 int main(void)
 {
   //##############
-  //CUDA limits
+  //CUDA realted variables
   //##############
-  int maxThreads = 1024;
+
+  // note that all 4 of the maxes below must be staisfied.
+  int maxThreadsTotal = 1024;
+  int maxThreadsX = 1024;
+  int maxThreadsY = 1024;
+  int maxThreadsZ = 64;   // not a typo that is the current nVidia max
+  int maxBlocksXYZ = 65535;  // technically its 2147483647 but that is only for the x direction and insane
+
+  int numBlocks = 0;
+  int numBoxBlocks = 0;
 
   //***************************
   //define Simulation Variables
@@ -28,17 +39,36 @@ int main(void)
   float R = 1.0;                  // Radius of a single monomer
   float Rc = 3.0*R;               // cutoff radius for interactions
   int PolymerMaxLength = 10;      // Max number of Monomers in a Polymer Chain
-  float PolymerSigma = .1;        // Global Density of Polymer chains attached to the volume floor: Units = Number of Polymer / Rc^2
+  float PolymerSigma = .1;        // Global Density of Polymer chains attached to the volume floor: Units = Number of Polymers / Rc^2
 
   //derived scale values
   float SubstrateSurfaceArea = ((float)PolymerCount)/ PolymerSigma;               // just rearranging the relationship sigma = number / area
   float VolumeDepth = ((float) ((int) sqrt(SubstrateSurfaceArea) + 1.0) ) * Rc;   // X-Axis: Depth * Length must equal the Area so we just divide evenly between the two with the square root. 
   float VolumeLength = ((float) ((int) sqrt(SubstrateSurfaceArea) + 1.0) ) * Rc;  // Y-Axis: the plus one and casting craziness is to get a ceiling operation and then convert back to a float.
-  float VolumeHeight = (float) PolymerMaxLength * R * 2.0 ;                       // Z-Axis: must be > Polymer length to make sure that the polymers will have room to expand
+  float VolumeHeight = (float) PolymerMaxLength * R * 3.0;                        // Z-Axis: must be > Polymer length to make sure that the polymers will have room to expand 2R would be the height
+                                                                                  // of a fully extended polymer so we give 50% extra
+  // define box dimension data
+  float3 BoxLengths;
+  BoxLengths.x = Rc;
+  BoxLengths.y = Rc;
+  BoxLengths.z = Rc;
+  float BoxVolume = BoxLengths.x*BoxLengths.y*BoxLengths.z;
+  
+  //define the grid for the boxes 
+  // all values are floats so the +1 makes sure that we don't make the system too small
+  int3 BoxNumsXYZ;
+  BoxNumsXYZ.x = (VolumeDepth / BoxLengths.x) +1; 
+  BoxNumsXYZ.y = (VolumeLength / BoxLengths.y) +1;
+  BoxNumsXYZ.z = (VolumeHeight / BoxLengths.z) +1;
+  int BoxNumTotal =   BoxNumsXYZ.x * BoxNumsXYZ.y * BoxNumsXYZ.z;
+
+  // define the MaxParticles per box on the assumtion that the interactions are like hard sphere when the distance is less than half of the particle radius
+  int MaxPaticles_Box = BoxVolume / R * 2;
 
   //Energy related values
-  float mass = 1.0;
-  float Temp = 1.0;
+  float mass = 1.0;                     // Mass in Kilograms
+  float Temp = 300;                     // Temperature in Kelvin
+  float kB = 1.38064852 * pow(10,-23);  // Boltzman's constant
 
   // setup polymers and determine total number of System Particles
   int PolymerLengths[PolymerCount];
@@ -56,14 +86,16 @@ int main(void)
   NanoCount = RequestedNanoCount - tExtraNanos;                   // Removes the remainder.
   SystemParticles += NanoCount;                                   // This is now the total number of particles (nano plus monomers) in the system.
   
-  //Define Kinematic Data memory
+  //Define Data memory
 
-  int *Type;
+  int *Type, *BlockIndex, *BoxParticles;
   int2 * neighbors;
   float3 *r, *v, *a;
   float *ScalarTemp;
 
   cudaMallocManaged(&Type, SystemParticles*sizeof(int));
+  cudaMallocManaged(&BlockIndex, SystemParticles*sizeof(int));
+  cudaMallocManaged(&BoxParticles, MaxPaticles_Box*BoxNumTotal*sizeof(int));
   cudaMallocManaged(&neighbors, SystemParticles*sizeof(int2));
   cudaMallocManaged(&r, SystemParticles*sizeof(float3));
   cudaMallocManaged(&v, SystemParticles*sizeof(float3));
@@ -147,14 +179,42 @@ int main(void)
     }
   }
 
- //scale velocities to confine temperature
- int numBlocks = SystemParticles / maxThreads +1; // the plus one is because of the integer dvision we always need at least 1
- dim3 blocks(numBlocks);
- dim3 threads(1024);
- calc_v2<<<blocks, threads>>>(v, ScalarTemp, 1024); // TODO CHECK WHAT happens when the array is less than 1024 
- // Wait for GPU to finish before accessing on host
- cudaDeviceSynchronize();
 
+ // set blocks for particle based indexing subroutines like identifying box location and velocity scaling
+  numBlocks = SystemParticles / maxThreadsTotal +1; // the plus one is because of the integer division we always need at least 1
+  if (numBlocks % maxThreadsTotal ==0){
+   // if numblocks is divisble by max threads then we have one extra block
+   --numBlocks;
+  }
+
+ //set blocks for box based indexing subroutines like putting particles in box arrays
+  numBoxBlocks = BoxNumTotal/maxThreadsTotal +1;
+  if (numBoxBlocks % maxThreadsTotal ==0){
+   // if numblocks is divisble by max threads then we have one extra block
+   --numBoxBlocks;
+  }
+
+ //we need to scale velocities to confine temperature
+ // cuda part of velocity scaling
+ dim3 blocks(numBlocks);
+ dim3 threads(maxThreadsTotal);
+
+dim3 boxBlocks(numBoxBlocks);
+ calc_v2<<<blocks, threads>>>(v, ScalarTemp, maxThreadsTotal,SystemParticles); // TODO CHECK WHAT happens when the array is less than 1024 
+ cudaDeviceSynchronize(); // Wait for GPU to finish before accessing on host
+ // cpu part of velosity scaling
+ if (!scale_velocity_for_Temp ( SystemParticles, mass, kB, Temp, ScalarTemp, v)){
+  return -1;
+ }
+
+ // assign all particles to boxes
+assign_particles2box<<<blocks, threads>>>(r, BlockIndex, BoxLengths, BoxNumsXYZ, maxThreadsTotal, SystemParticles);
+cudaDeviceSynchronize();
+
+//construct particle -> box mappings
+assign_box_particles<<<boxBlocks, threads>>>(BlockIndex, maxThreadsTotal,  SystemParticles,  BoxNumTotal,  MaxPaticles_Box, BoxParticles);
+cudaDeviceSynchronize();
+ 
 
 
   //write out initial configuration
@@ -204,6 +264,9 @@ int main(void)
   cudaFree(x);
   cudaFree(y);
   cudaFree(Type);
+  cudaFree(BlockIndex);
+  cudaFree(BoxParticles);
+  
   cudaFree(neighbors);
   cudaFree(r);
   cudaFree(v);
