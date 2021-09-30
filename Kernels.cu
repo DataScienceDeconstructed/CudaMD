@@ -50,7 +50,7 @@ void assign_box_particles(int* BlockIndex, int threadMax, int SystemParticles, i
   int index = threadMax*blockIdx.x + threadIdx.x;
   //check to see that there is a box that equates to the current thread
   if (index < BoxNumTotal){
-    //got through the full array of box indices
+    //go through the full array of box indices
     int particleCount = 0; 
     for(int i =0; i<SystemParticles; i++){
       
@@ -69,3 +69,38 @@ void assign_box_particles(int* BlockIndex, int threadMax, int SystemParticles, i
     }
   }
 }
+
+__global__
+void calculate_accelerations(float3* r, int* BlockIndex, int threadMax, int BoxNumTotal, int* BoxParticles, int MaxPaticles_Box){
+//get current thread's box index
+  int index = threadMax*blockIdx.x + threadIdx.x;
+  
+  //check to see that there is a box that equates to the current thread
+  if (index < BoxNumTotal){
+    //cycle through the particles in this box
+    for(int i = 0;i<MaxPaticles_Box;i++){
+      //only process if the particle index is nonnegative
+      if (BoxParticles[i + MaxPaticles_Box*index] == -1){
+        continue;
+      }
+      
+      for(int j = i+1;j<MaxPaticles_Box;j++){
+        //only process if the particle index is nonnegative
+        if (BoxParticles[j + MaxPaticles_Box*index] == -1){
+          continue;
+        }else{
+        // there are at least 2 particles in this box that will interact.
+        // TODO add interaction calculations:
+
+        }
+
+      }
+
+    
+    }
+
+  }
+
+}
+
+//TODO add a boxNearestNeighbors calculation
