@@ -124,62 +124,62 @@ int3 * SubordinatePlaneForeNeighbors, int3 * SubordinatePlaneZXPlaneNeighbors, i
   
   int3 boxCoords;
   boxCoords.x = index % VolumeBoxDims.x;
-  boxCoords.y = index / VolumeBoxDims.y;
-  boxCoords.z = index / VolumeBoxDims.x*VolumeBoxDims.y;
+  boxCoords.y = (index / VolumeBoxDims.x) % VolumeBoxDims.y;
+  boxCoords.z = index / (VolumeBoxDims.x * VolumeBoxDims.y);
 
   int3 neighCoords; // dummy variable for holding the coordinates of the neighbor being calculated currently
   
   // look at the box's current plane
   // neighbor 1
-  neighCoords.x = (boxCoords.x - 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y + 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
-  neighCoords.z = boxCoords.z;                          // same plane
-
-  CurrentPlaneNeighbors[index].w = neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
-  
-  // neighbor 2
-  neighCoords.x = (boxCoords.x     ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y + 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x - 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y + 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z;                          // same plane
 
   CurrentPlaneNeighbors[index].x = neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
-
-  // neighbor 3
-  neighCoords.x = (boxCoords.x + 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y + 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  
+  // neighbor 2
+  neighCoords.x = (boxCoords.x     + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y + 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z;                          // same plane
 
   CurrentPlaneNeighbors[index].y = neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
 
-  // neighbor 4
-  neighCoords.x = (boxCoords.x + 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y     ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  // neighbor 3
+  neighCoords.x = (boxCoords.x + 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y + 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z;                          // same plane
 
   CurrentPlaneNeighbors[index].z = neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
+
+  // neighbor 4
+  neighCoords.x = (boxCoords.x + 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y     + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.z = boxCoords.z;                          // same plane
+
+  CurrentPlaneNeighbors[index].w = neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
 
   // look at the subordinate plane
   
   //Fore neighbors
   // neighbor 5
-  neighCoords.x = (boxCoords.x - 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y + 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x - 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y + 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z - 1;                      // lower plane
   
   // no PBC on the Z axis
   SubordinatePlaneForeNeighbors[index].x = (neighCoords.z == -1) ? -1 : neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
   
   // neighbor 6
-  neighCoords.x = (boxCoords.x     ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y + 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x     + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y + 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z - 1;                      // lower plane
 
   //no PBC on the Z axis
   SubordinatePlaneForeNeighbors[index].y = (neighCoords.z == -1) ? -1 : neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
 
   // neighbor 7
-  neighCoords.x = (boxCoords.x + 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y + 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x + 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y + 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z -1 ;                      // lower plane
 
   //no PBC on the Z axis
@@ -187,24 +187,24 @@ int3 * SubordinatePlaneForeNeighbors, int3 * SubordinatePlaneZXPlaneNeighbors, i
 
   //ZX Plane neighbors
   // neighbor 8
-  neighCoords.x = (boxCoords.x - 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y     ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x - 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y     + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z - 1;                      // lower plane
   
   // no PBC on the Z axis
   SubordinatePlaneZXPlaneNeighbors[index].x = (neighCoords.z == -1) ? -1 : neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
   
   // neighbor 9
-  neighCoords.x = (boxCoords.x     ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y     ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x     + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y     + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z - 1;                      // lower plane
 
   //no PBC on the Z axis
   SubordinatePlaneZXPlaneNeighbors[index].y = (neighCoords.z == -1) ? -1 : neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
 
   // neighbor 10
-  neighCoords.x = (boxCoords.x + 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y     ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x + 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y     + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z -1 ;                      // lower plane
 
   //no PBC on the Z axis
@@ -212,24 +212,24 @@ int3 * SubordinatePlaneForeNeighbors, int3 * SubordinatePlaneZXPlaneNeighbors, i
 
   //aft neighbors
   // neighbor 11
-  neighCoords.x = (boxCoords.x - 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y - 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x - 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y - 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z - 1;                      // lower plane
   
   // no PBC on the Z axis
   SubordinatePlaneAftNeighbors[index].x = (neighCoords.z == -1) ? -1 : neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
   
   // neighbor 12
-  neighCoords.x = (boxCoords.x     ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y - 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x     + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y - 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z - 1;                      // lower plane
 
   //no PBC on the Z axis
   SubordinatePlaneAftNeighbors[index].y = (neighCoords.z == -1) ? -1 : neighCoords.x + neighCoords.y * VolumeBoxDims.x + neighCoords.z * VolumeBoxDims.x * VolumeBoxDims.y ;
 
   // neighbor 13
-  neighCoords.x = (boxCoords.x + 1 ) % VolumeBoxDims.x; // ensure Periodic boundary conditions
-  neighCoords.y = (boxCoords.y - 1 ) % VolumeBoxDims.y; // ensure Periodic boundary conditions
+  neighCoords.x = (boxCoords.x + 1 + VolumeBoxDims.x) % VolumeBoxDims.x; // ensure Periodic boundary conditions
+  neighCoords.y = (boxCoords.y - 1 + VolumeBoxDims.y) % VolumeBoxDims.y; // ensure Periodic boundary conditions
   neighCoords.z = boxCoords.z -1 ;                      // lower plane
 
   //no PBC on the Z axis

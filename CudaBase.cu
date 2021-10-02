@@ -39,7 +39,7 @@ int main(void)
   float R = 1.0;                  // Radius of a single monomer
   float Rc = 3.0*R;               // cutoff radius for interactions
   int PolymerMaxLength = 10;      // Max number of Monomers in a Polymer Chain
-  float PolymerSigma = .1;        // Global Density of Polymer chains attached to the volume floor: Units = Number of Polymers / Rc^2
+  float PolymerSigma = .01;        // Global Density of Polymer chains attached to the volume floor: Units = Number of Polymers / Rc^2
 
   //derived scale values
   float SubstrateSurfaceArea = ((float)PolymerCount)/ PolymerSigma;               // just rearranging the relationship sigma = number / area
