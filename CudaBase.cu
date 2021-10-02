@@ -62,13 +62,14 @@ int main(void)
   BoxNumsXYZ.z = (VolumeHeight / BoxLengths.z) +1;
   int BoxNumTotal =   BoxNumsXYZ.x * BoxNumsXYZ.y * BoxNumsXYZ.z;
 
-  // define the MaxParticles per box on the assumtion that the interactions are like hard sphere when the distance is less than half of the particle radius
-  int MaxPaticles_Box = BoxVolume / R * 2;
+  // define the MaxParticles per box on the assumption that the interactions let twice the volume of the particles into the box. 
+  // The factor of 2 is a fudge factor.
+  int MaxPaticles_Box = BoxVolume / (4.0 / 3.0 * 3.14 * R * R *R) * 2;
 
   //Energy related values
   float mass = 1.0;                     // Mass in Kilograms
   float Temp = 300;                     // Temperature in Kelvin
-  float kB = 1.38064852 * pow(10,-23);  // Boltzman's constant
+  float kB = 1.38064852 * pow(10,-23);  // Boltzman's constant in Joules / Kelvin
 
   // setup polymers and determine total number of System Particles
   int PolymerLengths[PolymerCount];
@@ -92,10 +93,19 @@ int main(void)
   int2 * neighbors;
   float3 *r, *v, *a;
   float *ScalarTemp;
+  int4 * CurrentPlaneNeighbors;
+  int3 * SubordinatePlaneForeNeighbors, * SubordinatePlaneZXPlaneNeighbors, * SubordinatePlaneAftNeighbors;
 
   cudaMallocManaged(&Type, SystemParticles*sizeof(int));
   cudaMallocManaged(&BlockIndex, SystemParticles*sizeof(int));
   cudaMallocManaged(&BoxParticles, MaxPaticles_Box*BoxNumTotal*sizeof(int));
+  
+  //allocate memory for nearest neighbor recordings
+  cudaMallocManaged(&CurrentPlaneNeighbors, BoxNumTotal*sizeof(int4));
+  cudaMallocManaged(&SubordinatePlaneForeNeighbors, BoxNumTotal*sizeof(int3));
+  cudaMallocManaged(&SubordinatePlaneZXPlaneNeighbors, BoxNumTotal*sizeof(int3));
+  cudaMallocManaged(&SubordinatePlaneAftNeighbors, BoxNumTotal*sizeof(int3));
+  
   cudaMallocManaged(&neighbors, SystemParticles*sizeof(int2));
   cudaMallocManaged(&r, SystemParticles*sizeof(float3));
   cudaMallocManaged(&v, SystemParticles*sizeof(float3));
@@ -198,8 +208,8 @@ int main(void)
  // cuda part of velocity scaling
  dim3 blocks(numBlocks);
  dim3 threads(maxThreadsTotal);
-
-dim3 boxBlocks(numBoxBlocks);
+ dim3 boxBlocks(numBoxBlocks);
+ 
  calc_v2<<<blocks, threads>>>(v, ScalarTemp, maxThreadsTotal,SystemParticles); // TODO CHECK WHAT happens when the array is less than 1024 
  cudaDeviceSynchronize(); // Wait for GPU to finish before accessing on host
  // cpu part of velosity scaling
@@ -215,7 +225,10 @@ cudaDeviceSynchronize();
 assign_box_particles<<<boxBlocks, threads>>>(BlockIndex, maxThreadsTotal,  SystemParticles,  BoxNumTotal,  MaxPaticles_Box, BoxParticles);
 cudaDeviceSynchronize();
  
-
+//establish nearest neighbors
+calculateNearestNeighbors<<<boxBlocks, threads>>>( BoxNumsXYZ, maxThreadsTotal, BoxNumTotal, CurrentPlaneNeighbors,
+                          SubordinatePlaneForeNeighbors, SubordinatePlaneZXPlaneNeighbors,  SubordinatePlaneAftNeighbors);
+cudaDeviceSynchronize();
 
   //write out initial configuration
   //writePositions(r,SystemParticles);
@@ -230,43 +243,19 @@ cudaDeviceSynchronize();
   
   myfile.close();
 
-  int N = 1<<20;
-  float *x, *y;
-
-  // Allocate Unified Memory – accessible from CPU or GPU
-  cudaMallocManaged(&x, N*sizeof(float));
-  cudaMallocManaged(&y, N*sizeof(float));
-
-  // initialize x and y arrays on the host
-  for (int i = 0; i < N; i++) {
-    x[i] = 2.0f;
-    y[i] = 2.0f;
-  }
-
-  std::cout<< x[54];
-  std::cout<< y[54];
-
-  // Run kernel on 1M elements on the GPU
-  add<<<1, 1>>>(N, x, y);
-
-  // Wait for GPU to finish before accessing on host
-  cudaDeviceSynchronize();
- std::cout<< y[54];
-  // Check for errors (all values should be 3.0f)
-  float maxError = 0.0f;
-
-  for (int i = 0; i < N; i++){
-    maxError = fmax(maxError, fabs(y[i]-4.0f));
-  }
-  std::cout << "Max error: " << maxError << std::endl;
-
-  // Free memory
-  cudaFree(x);
-  cudaFree(y);
-  cudaFree(Type);
+  
+  
   cudaFree(BlockIndex);
   cudaFree(BoxParticles);
+
+  //box nearest neighbor processing
+  cudaFree(CurrentPlaneNeighbors);
+  cudaFree(SubordinatePlaneAftNeighbors);
+  cudaFree(SubordinatePlaneForeNeighbors);
+  cudaFree(SubordinatePlaneZXPlaneNeighbors);
   
+  //particle related values
+  cudaFree(Type);
   cudaFree(neighbors);
   cudaFree(r);
   cudaFree(v);
